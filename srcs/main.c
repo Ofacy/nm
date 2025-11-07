@@ -109,19 +109,13 @@ int main(int argc, char **argv)
 		return (write(2, "Error: Unsupported ELF class or data encoding\n", 45), 1);
 	}
 
-	if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN) {
-		munmap(map, st.st_size);
-		close(fd);
-		return (write(2, "Error: Unsupported ELF type\n", 28), 1);
-	}
-
 	Elf64_Shdr *shdr = (Elf64_Shdr *)((char *)map + ehdr->e_shoff);
 	Elf64_Shdr *symtab_shdr = NULL;
 	Elf64_Shdr *strtab_shdr = NULL;
 	for (int i = 0; i < ehdr->e_shnum; i++) {
 		if (shdr[i].sh_type == SHT_SYMTAB) {
 			symtab_shdr = &shdr[i];
-		} else if (shdr[i].sh_type == SHT_STRTAB && i != ehdr->e_shstrndx) {
+		} else if (shdr[i].sh_type == SHT_STRTAB) {
 			strtab_shdr = &shdr[i];
 		}
 	}
