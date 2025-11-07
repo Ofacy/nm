@@ -1,0 +1,6 @@
+[submodule "libs/libft"]
+	path = libs/libft
+	url = git@github.com:Ofacy/42-libft
+[submodule "libs/vector"]
+	path = libs/vector
+	url = git@github.com:UnRenardQuiDab/vector_c
