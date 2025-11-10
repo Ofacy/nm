@@ -31,13 +31,16 @@ char get_identifier(Elf64_Sym sym, Elf64_Shdr *shdr, size_t shnum)
 					identifier = 'D';
 				else if (sec.sh_flags & SHF_ALLOC)
 					identifier = 'R';
-				
+				else if (sec.sh_type == SHT_GROUP)
+					identifier = 'n';
+				else
+					identifier = 'N';
 			}
 			break;
 	}
 	switch (ELF64_ST_BIND(sym.st_info)) {
 		case STB_LOCAL:
-			if (identifier != '?')
+			if (identifier != '?' && identifier != 'n' && identifier != 'N')
 				identifier += 32;
 			break;
 		case STB_WEAK:
@@ -115,7 +118,7 @@ int main(int argc, char **argv)
 	for (int i = 0; i < ehdr->e_shnum; i++) {
 		if (shdr[i].sh_type == SHT_SYMTAB) {
 			symtab_shdr = &shdr[i];
-		} else if (shdr[i].sh_type == SHT_STRTAB) {
+		} else if (shdr[i].sh_type == SHT_STRTAB && i != ehdr->e_shstrndx) {
 			strtab_shdr = &shdr[i];
 		}
 	}
@@ -127,7 +130,7 @@ int main(int argc, char **argv)
 	Elf64_Sym *symtab = (Elf64_Sym *)((char *)map + symtab_shdr->sh_offset);
 	const char *strtab = (char *)map + strtab_shdr->sh_offset;
 	size_t num_symbols = symtab_shdr->sh_size / sizeof(Elf64_Sym);
-	for (size_t i = 0; i < num_symbols; i++) {
+	for (size_t i = 1; i < num_symbols; i++) {
 		char identifier = get_identifier(symtab[i], shdr, ehdr->e_shnum);
 		char addr_str[17];
 		if (should_print_address(identifier)) {
