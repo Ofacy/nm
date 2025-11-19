@@ -6,7 +6,7 @@
 /*   By: lcottet <lcottet@student.42lyon.fr>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/11/08 16:41:42 by lcottet           #+#    #+#             */
-/*   Updated: 2023/11/21 10:54:40 by lcottet          ###   ########.fr       */
+/*   Updated: 2025/11/20 00:47:53 by lcottet          ###   ########lyon.fr   */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,22 +42,22 @@ int	ft_invalid_fmt(char *conversion, int *len, char *err)
 	return (1);
 }
 
-size_t	ft_printf_conversions(char *conversion, va_list args, int *len, char *e)
+size_t	ft_printf_conversions(char *conversion, va_list *args, int *len, char *e)
 {
 	if (conversion[0] == 'c')
-		*len = ft_printchar(va_arg(args, int));
+		*len = ft_printchar(va_arg(*args, int));
 	else if (conversion[0] == 's')
-		*len = ft_printstr(va_arg(args, char *));
+		*len = ft_printstr(va_arg(*args, char *));
 	else if (conversion[0] == 'p')
-		*len = ft_print_ptr(va_arg(args, unsigned long long), 0);
+		*len = ft_print_ptr(va_arg(*args, unsigned long long), 0);
 	else if (conversion[0] == 'i' || conversion[0] == 'd')
-		*len = ft_putnbr_len_fd(va_arg(args, int), 1, 0);
+		*len = ft_putnbr_len_fd(va_arg(*args, int), 1, 0);
 	else if (conversion[0] == 'u')
-		*len = ft_putunsigned_fd((unsigned int)va_arg(args, int), 1, 0);
+		*len = ft_putunsigned_fd((unsigned int)va_arg(*args, int), 1, 0);
 	else if (conversion[0] == 'x')
-		*len = ft_putnbr_base_fd(va_arg(args, int), "0123456789abcdef", 1, 0);
+		*len = ft_putnbr_base_fd(va_arg(*args, int), "0123456789abcdef", 1, 0);
 	else if (conversion[0] == 'X')
-		*len = ft_putnbr_base_fd(va_arg(args, int), "0123456789ABCDEF", 1, 0);
+		*len = ft_putnbr_base_fd(va_arg(*args, int), "0123456789ABCDEF", 1, 0);
 	else if (conversion[0] == '\0' && !*e)
 	{
 		*len = -1;
@@ -86,7 +86,7 @@ int	ft_printf(const char *format, ...)
 	{
 		if (format[i] == '%')
 		{
-			i += 1 + ft_printf_conversions((char *)format + i + 1, list, &ret, \
+			i += 1 + ft_printf_conversions((char *)format + i + 1, &list, &ret, \
 				&err);
 		}
 		else

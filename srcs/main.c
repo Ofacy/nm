@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 	if (ehdr.e_shoff + ehdr.e_shnum * arch_specifics.sizeof_section_header > (unsigned long)st.st_size) {
 		munmap(map, st.st_size);
 		close(fd);
-		return (write(2, "Error: file too short\n", 48), 1);
+		return (write(2, "Error: file too short\n", 22), 1);
 	}
 
 	unsigned char *shdr = (map + ehdr.e_shoff);
