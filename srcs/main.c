@@ -31,16 +31,15 @@ int get_name_len(const char *strtable, size_t offset, size_t strtable_size)
 
 int compare_symbol_names(t_symbol *s1, t_symbol *s2)
 {
-	if (s1->name == NULL && s2->name == NULL)
-		return (0);
-	if (s1->name == NULL && s2->name != NULL)
-		return (-1);
-	if (s1->name != NULL && s2->name == NULL)
-		return (1);
-	int strcmp = ft_strncmp(s1->name, s2->name, s1->name_len + 1);
-	if (strcmp != 0)
-		return (strcmp);
-	return (ft_strncmp(s1->address, s2->address, 16));
+	if (s1->name == NULL || s2->name == NULL)
+		return (s2->name - s1->name);
+	if (s1->name_offset != s2->name_offset)
+	{
+		int strcmp = ft_strncmp(s1->name, s2->name, s1->name_len + 1);
+		if (strcmp != 0)
+			return (strcmp);
+	}
+	return (s1->og_index - s2->og_index);
 }
 
 int main(int argc, char **argv)
@@ -122,11 +121,13 @@ int main(int argc, char **argv)
 		if (is_filtered_symbol(symbol.identifier))
 			continue;
 		if (should_print_address(symbol.identifier)) {
-			fill_addr(symbol.address, symtab[i].st_value);
+			fill_addr(symbol.address_str, symtab[i].st_value);
 		} else {
-			ft_memset(symbol.address, ' ', 16);
+			ft_memset(symbol.address_str, ' ', 16);
 		}
-		symbol.address[16] = '\0';
+		symbol.address_str[16] = '\0';
+		symbol.name_offset = symtab[i].st_name;
+		symbol.og_index = i;
 		if (symtab[i].st_name != 0) {
 			char *sym_name = strtab + symtab[i].st_name;
 			if (sym_name > (strtab + strtab_shdr->sh_size)) {
