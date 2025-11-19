@@ -82,6 +82,14 @@ void fill_addr(char *dest, Elf64_Addr addr)
 	}
 }
 
+int get_name_len(const char *strtable, size_t offset, size_t strtable_size)
+{
+	size_t len = 0;
+	while (offset + len < strtable_size && strtable[offset + len] != '\0')
+		len++;
+	return len;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc < 2) {
@@ -171,7 +179,7 @@ int main(int argc, char **argv)
 			if (sym_name > (strtab + strtab_shdr->sh_size)) {
 				write(1, "<corrupt>", 9);
 			} else
-				write(1, sym_name, ft_strlen(sym_name));
+				write(1, sym_name, get_name_len(strtab, symtab[i].st_name, strtab_shdr->sh_size));
 		}
 		write(1, "\n", 1);
 	}
