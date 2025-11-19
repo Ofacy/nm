@@ -141,7 +141,6 @@ int main(int argc, char **argv)
 		else {
 			if (symtab[i].st_value == 0)
 				continue;
-			symbol.name = "";
 		}
 
 		size_t insert_index = vector_binary_search(&symbols, &symbol, (int (*)(void *, void*))compare_symbol_names);
