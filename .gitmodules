@@ -1,3 +1,3 @@
 [submodule "libs/vector"]
 	path = libs/vector
-	url = git@github.com:UnRenardQuiDab/vector_c
+	url = git@github.com:Ofacy/vector_c.git

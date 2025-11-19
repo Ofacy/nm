@@ -1,74 +1,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include "elf.h"
+#include <elf.h>
 #include <sys/stat.h>
 
 #include <libft.h>
+#include <vector.h>
 
-char get_identifier(Elf64_Sym sym, Elf64_Shdr *shdr, size_t shnum)
-{
-	char identifier = '?';
-
-	switch (sym.st_shndx) {
-		case SHN_UNDEF:
-			identifier = 'U';
-			break;
-		case SHN_ABS:
-			identifier = 'A';
-			break;
-		case SHN_COMMON:
-			identifier = 'C';
-			break;
-		default:
-			if (sym.st_shndx < shnum) {
-				Elf64_Shdr sec = shdr[sym.st_shndx];
-				if (sec.sh_type == SHT_NOBITS && (sec.sh_flags & SHF_ALLOC) && (sec.sh_flags & SHF_WRITE))
-					identifier = 'B';
-				else if (sec.sh_type == SHT_PROGBITS && (sec.sh_flags & SHF_ALLOC) && (sec.sh_flags & SHF_EXECINSTR))
-					identifier = 'T';
-				else if ((sec.sh_flags & SHF_ALLOC) && (sec.sh_flags & SHF_WRITE))
-					identifier = 'D';
-				else if (sec.sh_flags & SHF_ALLOC)
-					identifier = 'R';
-				else if (sec.sh_type == SHT_GROUP)
-					identifier = 'n';
-				else
-					identifier = 'N';
-			}
-			break;
-	}
-	switch (ELF64_ST_BIND(sym.st_info)) {
-		case STB_LOCAL:
-			if (identifier != '?' && identifier != 'n' && identifier != 'N')
-				identifier += 32;
-			break;
-		case STB_WEAK:
-			if (ELF64_ST_TYPE(sym.st_info) == STT_OBJECT) {
-				if (identifier == 'U')
-					identifier = 'v';
-				else
-					identifier = 'V';
-				break;
-			}
-			if (identifier == 'U')
-				identifier = 'w';
-			else
-				identifier = 'W';
-			break;
-	}
-	return identifier;
-}
-
-int should_print_address(char identifier)
-{
-	return (identifier != 'u' && identifier != 'U' && identifier != 'w' && identifier != 'v');
-}
-
-int is_filtered_symbol(char identifier)
-{
-	return (identifier == '?' || identifier == 'n' || identifier == 'N' || identifier == 'a');
-}
+#include "symbol.h"
 
 void fill_addr(char *dest, Elf64_Addr addr)
 {
@@ -88,6 +27,20 @@ int get_name_len(const char *strtable, size_t offset, size_t strtable_size)
 	while (offset + len < strtable_size && strtable[offset + len] != '\0')
 		len++;
 	return len;
+}
+
+int compare_symbol_names(t_symbol *s1, t_symbol *s2)
+{
+	if (s1->name == NULL && s2->name == NULL)
+		return (0);
+	if (s1->name == NULL && s2->name != NULL)
+		return (-1);
+	if (s1->name != NULL && s2->name == NULL)
+		return (1);
+	int strcmp = ft_strncmp(s1->name, s2->name, s1->name_len + 1);
+	if (strcmp != 0)
+		return (strcmp);
+	return (ft_strncmp(s1->address, s2->address, 16));
 }
 
 int main(int argc, char **argv)
@@ -157,33 +110,50 @@ int main(int argc, char **argv)
 	}
 
 	Elf64_Sym *symtab = (Elf64_Sym *)((char *)map + symtab_shdr->sh_offset);
-	const char *strtab = (char *)map + strtab_shdr->sh_offset;
+	char *strtab = (char *)map + strtab_shdr->sh_offset;
 	size_t num_symbols = symtab_shdr->sh_size / sizeof(Elf64_Sym);
-	for (size_t i = 1; i < num_symbols; i++) {
-		char identifier = get_identifier(symtab[i], shdr, ehdr->e_shnum);
-		char addr_str[17];
+	t_vector symbols;
 
-		if (is_filtered_symbol(identifier))
+	vector_init(&symbols, sizeof(t_symbol));
+	for (size_t i = 1; i < num_symbols; i++) {
+		t_symbol symbol;
+		symbol.identifier  = get_identifier(symtab[i], shdr, ehdr->e_shnum);
+
+		if (is_filtered_symbol(symbol.identifier))
 			continue;
-		if (should_print_address(identifier)) {
-			fill_addr(addr_str, symtab[i].st_value);
+		if (should_print_address(symbol.identifier)) {
+			fill_addr(symbol.address, symtab[i].st_value);
 		} else {
-			ft_memset(addr_str, ' ', 16);
+			ft_memset(symbol.address, ' ', 16);
 		}
-		write(1, addr_str, 16);
-		write(1, " ", 1);
-		write(1, &identifier, 1);
-		write(1, " ", 1);
+		symbol.address[16] = '\0';
 		if (symtab[i].st_name != 0) {
-			const char *sym_name = strtab + symtab[i].st_name;
+			char *sym_name = strtab + symtab[i].st_name;
 			if (sym_name > (strtab + strtab_shdr->sh_size)) {
-				write(1, "<corrupt>", 9);
-			} else
-				write(1, sym_name, get_name_len(strtab, symtab[i].st_name, strtab_shdr->sh_size));
+				symbol.name = "<corrupt>";
+				symbol.name_len = 9;
+			} else {
+				symbol.name = sym_name;
+				symbol.name_len = get_name_len(strtab, symtab[i].st_name, strtab_shdr->sh_size);
+			}
 		}
-		write(1, "\n", 1);
+		else {
+			if (symtab[i].st_value == 0)
+				continue;
+			symbol.name = "";
+		}
+
+		size_t insert_index = vector_binary_search(&symbols, &symbol, (int (*)(void *, void*))compare_symbol_names);
+		if (vector_addi(&symbols, &symbol, insert_index) == -1) {
+			vector_free(&symbols);
+			munmap(map, st.st_size);
+			return (1);
+		}
 	}
 
+	vector_foreach(&symbols, (void (*)(void *))print_symbol);
+
+	vector_free(&symbols);
 	munmap(map, st.st_size);
 	close(fd);
 	return 0;
