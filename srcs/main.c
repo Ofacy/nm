@@ -65,6 +65,11 @@ int should_print_address(char identifier)
 	return (identifier != 'u' && identifier != 'U' && identifier != 'w' && identifier != 'v');
 }
 
+int is_filtered_symbol(char identifier)
+{
+	return (identifier == '?' || identifier == 'n' || identifier == 'N' || identifier == 'a');
+}
+
 void fill_addr(char *dest, Elf64_Addr addr)
 {
 	for (int i = 15; i >= 0; i--) {
@@ -127,12 +132,26 @@ int main(int argc, char **argv)
 		close(fd);
 		return (write(2, "Error: Cannot find symbol or string table\n", 42), 1);
 	}
+	if (strtab_shdr->sh_addr + strtab_shdr->sh_size > (unsigned long)st.st_size) {
+		munmap(map, st.st_size);
+		close(fd);
+		return (write(2, "Error: Corrupt string table\n", 28), 1);
+	}
+	if (symtab_shdr->sh_addr + symtab_shdr->sh_size > (unsigned long)st.st_size) {
+		munmap(map, st.st_size);
+		close(fd);
+		return (write(2, "Error: Corrupt symbol table\n", 28), 1);
+	}
+
 	Elf64_Sym *symtab = (Elf64_Sym *)((char *)map + symtab_shdr->sh_offset);
 	const char *strtab = (char *)map + strtab_shdr->sh_offset;
 	size_t num_symbols = symtab_shdr->sh_size / sizeof(Elf64_Sym);
 	for (size_t i = 1; i < num_symbols; i++) {
 		char identifier = get_identifier(symtab[i], shdr, ehdr->e_shnum);
 		char addr_str[17];
+
+		if (is_filtered_symbol(identifier))
+			continue;
 		if (should_print_address(identifier)) {
 			fill_addr(addr_str, symtab[i].st_value);
 		} else {
@@ -144,7 +163,10 @@ int main(int argc, char **argv)
 		write(1, " ", 1);
 		if (symtab[i].st_name != 0) {
 			const char *sym_name = strtab + symtab[i].st_name;
-			write(1, sym_name, ft_strlen(sym_name));
+			if (sym_name > (strtab + strtab_shdr->sh_size)) {
+				write(1, "<corrupt>", 9);
+			} else
+				write(1, sym_name, ft_strlen(sym_name));
 		}
 		write(1, "\n", 1);
 	}
