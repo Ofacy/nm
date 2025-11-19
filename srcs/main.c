@@ -123,8 +123,13 @@ int main(int argc, char **argv)
 	for (int i = 0; i < ehdr->e_shnum; i++) {
 		if (shdr[i].sh_type == SHT_SYMTAB) {
 			symtab_shdr = &shdr[i];
-		} else if (shdr[i].sh_type == SHT_STRTAB && i != ehdr->e_shstrndx) {
-			strtab_shdr = &shdr[i];
+		} else if (shdr[i].sh_type == SHT_STRTAB) {
+			if (i != ehdr->e_shstrndx)
+				strtab_shdr = &shdr[i];
+			else if (strtab_shdr == NULL) {
+				// Fallback to first STRTAB if no other found
+				strtab_shdr = &shdr[i];
+			}
 		}
 	}
 	if (!symtab_shdr || !strtab_shdr) {
