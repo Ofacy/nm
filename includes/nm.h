@@ -5,11 +5,12 @@
 # include <stddef.h>
 
 typedef struct s_arch_functions {
-	Elf64_Shdr	(*get_section_header)(void *section_header_array, uint16_t index);
-	Elf64_Sym	(*get_symbol)(void *symbol_array, size_t index);
-	Elf64_Ehdr	(*get_elf_header)(void *map);
-	size_t		sizeof_symbol;
-	size_t		sizeof_section_header;
+	Elf64_Shdr		(*get_section_header)(void *section_header_array, uint16_t index);
+	Elf64_Sym		(*get_symbol)(void *symbol_array, size_t index);
+	Elf64_Ehdr		(*get_elf_header)(void *map);
+	size_t			sizeof_symbol;
+	size_t			sizeof_section_header;
+	int				addr_len;
 }	t_arch_functions;
 
 Elf64_Shdr	get_section_header_x64(void *section_header_array, uint16_t index);

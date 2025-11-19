@@ -10,9 +10,9 @@
 #include "symbol.h"
 #include "nm.h"
 
-void fill_addr(char *dest, Elf64_Addr addr)
+void fill_addr(char *dest, Elf64_Addr addr, int len)
 {
-	for (int i = 15; i >= 0; i--) {
+	for (int i = len - 1; i >= 0; i--) {
 		int nibble = addr & 0xF;
 		if (nibble < 10)
 			dest[i] = '0' + nibble;
@@ -78,6 +78,7 @@ int main(int argc, char **argv)
 		arch_specifics.get_elf_header = get_elf_header_x64;
 		arch_specifics.sizeof_symbol = sizeof(Elf64_Sym);
 		arch_specifics.sizeof_section_header = sizeof(Elf64_Shdr);
+		arch_specifics.addr_len = 16;
 	}
 	else if (map[EI_CLASS] == ELFCLASS32) {
 		arch_specifics.get_section_header = get_section_header_x32;
@@ -85,6 +86,7 @@ int main(int argc, char **argv)
 		arch_specifics.get_elf_header = get_elf_header_x32;
 		arch_specifics.sizeof_symbol = sizeof(Elf32_Sym);
 		arch_specifics.sizeof_section_header = sizeof(Elf32_Shdr);
+		arch_specifics.addr_len = 8;
 	}
 	else
 	{
@@ -142,11 +144,11 @@ int main(int argc, char **argv)
 		if (is_filtered_symbol(symbol.identifier))
 			continue;
 		if (should_print_address(symbol.identifier)) {
-			fill_addr(symbol.address_str, og_symbol.st_value);
+			fill_addr(symbol.address_str, og_symbol.st_value, arch_specifics.addr_len);
 		} else {
-			ft_memset(symbol.address_str, ' ', 16);
+			ft_memset(symbol.address_str, ' ', arch_specifics.addr_len);
 		}
-		symbol.address_str[16] = '\0';
+		symbol.address_str[arch_specifics.addr_len] = '\0';
 		symbol.name_offset = og_symbol.st_name;
 		symbol.og_index = i;
 		if (og_symbol.st_name != 0) {
