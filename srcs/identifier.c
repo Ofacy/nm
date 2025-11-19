@@ -69,9 +69,11 @@ int is_filtered_symbol(char identifier)
 }
 
 void print_symbol(t_symbol *symbol) {
-	if (ft_printf("%s %c", symbol->address, symbol->identifier) == -1)
+	if (ft_printf("%s %c", symbol->address_str, symbol->identifier) == -1)
 		return ;
 	if (symbol->name) {
+		if (symbol->name[symbol->name_len] != '\0')
+			symbol->name = "<corrupt>";
 		if (ft_printf(" %s", symbol->name) == -1)
 			return ;
 	}
