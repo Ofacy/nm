@@ -95,6 +95,11 @@ int main(int argc, char **argv)
 		return (write(2, "Error: Unsupported ELF class or data encoding\n", 45), 1);
 	}
 	Elf64_Ehdr ehdr = arch_specifics.get_elf_header(map);
+	if (ehdr.e_shoff + ehdr.e_shnum * arch_specifics.sizeof_section_header > (unsigned long)st.st_size) {
+		munmap(map, st.st_size);
+		close(fd);
+		return (write(2, "Error: file too short\n", 48), 1);
+	}
 
 	unsigned char *shdr = (map + ehdr.e_shoff);
 	void *symtab_shdr = NULL;
@@ -141,8 +146,6 @@ int main(int argc, char **argv)
 		Elf64_Sym og_symbol = arch_specifics.get_symbol(symtab, i);
 		symbol.identifier  = get_identifier(og_symbol, shdr, arch_specifics, ehdr.e_shnum);
 
-		if (is_filtered_symbol(symbol.identifier))
-			continue;
 		if (should_print_address(symbol.identifier)) {
 			fill_addr(symbol.address_str, og_symbol.st_value, arch_specifics.addr_len);
 		} else {
@@ -151,6 +154,7 @@ int main(int argc, char **argv)
 		symbol.address_str[arch_specifics.addr_len] = '\0';
 		symbol.name_offset = og_symbol.st_name;
 		symbol.og_index = i;
+	
 		if (og_symbol.st_name != 0) {
 			char *sym_name = strtab + og_symbol.st_name;
 			if (sym_name > (strtab + string_table_header.sh_size)) {
@@ -164,7 +168,10 @@ int main(int argc, char **argv)
 		else {
 			if (og_symbol.st_value == 0)
 				continue;
+			symbol.name = NULL;
 		}
+		if (is_filtered_symbol(symbol))
+			continue;
 
 		size_t insert_index = vector_binary_search(&symbols, &symbol, (int (*)(void *, void*))compare_symbol_names);
 		if (vector_addi(&symbols, &symbol, insert_index) == -1) {
