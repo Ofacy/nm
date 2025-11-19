@@ -19,7 +19,7 @@ char get_identifier(Elf64_Sym sym, void *shdr, t_arch_functions arch_specifics, 
 
 int should_print_address(char identifier);
 
-int is_filtered_symbol(char identifier);
+int is_filtered_symbol(t_symbol symbol);
 
 void print_symbol(t_symbol *symbol);
 

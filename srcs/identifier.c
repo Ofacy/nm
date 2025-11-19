@@ -34,6 +34,9 @@ char get_identifier(Elf64_Sym sym, void *shdr, t_arch_functions arch_specifics, 
 				else
 					identifier = 'N';
 			}
+			if (ELF64_ST_TYPE(sym.st_info) == STT_GNU_IFUNC) {
+				return 'i';
+			}
 			break;
 	}
 	switch (ELF64_ST_BIND(sym.st_info)) {
@@ -63,9 +66,12 @@ int should_print_address(char identifier)
 	return (identifier != 'u' && identifier != 'U' && identifier != 'w' && identifier != 'v');
 }
 
-int is_filtered_symbol(char identifier)
+int is_filtered_symbol(t_symbol symbol)
 {
-	return (identifier == '?' || identifier == 'n' || identifier == 'N' || identifier == 'a');
+	if (symbol.name == NULL)
+		return (1);
+
+	return (symbol.identifier == '?' || symbol.identifier == 'n' || symbol.identifier == 'N' || symbol.identifier == 'a');
 }
 
 void print_symbol(t_symbol *symbol) {
@@ -73,7 +79,7 @@ void print_symbol(t_symbol *symbol) {
 		return ;
 	if (symbol->name) {
 		if (symbol->name[symbol->name_len] != '\0')
-			symbol->name = "<corrupt>";
+			symbol->name = NULL;
 		if (ft_printf(" %s", symbol->name) == -1)
 			return ;
 	}
