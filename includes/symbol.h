@@ -2,6 +2,7 @@
 # define SYMBOL_H
 
 # include <elf.h>
+# include "nm.h"
 
 typedef struct s_symbol {
 	uint64_t	name_offset;
@@ -9,10 +10,12 @@ typedef struct s_symbol {
 	char		*name;
 	char		address_str[17];
 	int			name_len;
+	uint16_t	section_index;
+	char		info;
 	char		identifier;
 }	t_symbol;
 
-char get_identifier(Elf64_Sym sym, Elf64_Shdr *shdr, size_t shnum);
+char get_identifier(Elf64_Sym sym, void *shdr, t_arch_functions arch_specifics, size_t shnum);
 
 int should_print_address(char identifier);
 

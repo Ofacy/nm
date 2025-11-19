@@ -4,7 +4,7 @@
 #include "symbol.h"
 #include "libft.h"
 
-char get_identifier(Elf64_Sym sym, Elf64_Shdr *shdr, size_t shnum)
+char get_identifier(Elf64_Sym sym, void *shdr, t_arch_functions arch_specifics, size_t shnum)
 {
 	char identifier = '?';
 
@@ -20,7 +20,7 @@ char get_identifier(Elf64_Sym sym, Elf64_Shdr *shdr, size_t shnum)
 			break;
 		default:
 			if (sym.st_shndx < shnum) {
-				Elf64_Shdr sec = shdr[sym.st_shndx];
+				Elf64_Shdr sec = arch_specifics.get_section_header(shdr, sym.st_shndx);
 				if (sec.sh_type == SHT_NOBITS && (sec.sh_flags & SHF_ALLOC) && (sec.sh_flags & SHF_WRITE))
 					identifier = 'B';
 				else if (sec.sh_type == SHT_PROGBITS && (sec.sh_flags & SHF_ALLOC) && (sec.sh_flags & SHF_EXECINSTR))

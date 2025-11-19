@@ -8,6 +8,7 @@
 #include <vector.h>
 
 #include "symbol.h"
+#include "nm.h"
 
 void fill_addr(char *dest, Elf64_Addr addr)
 {
@@ -56,39 +57,56 @@ int main(int argc, char **argv)
 		close(fd);
 		return (write(2, "Error: Cannot stat file\n", 24), 1);
 	}
-	void *map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	unsigned char *map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (map == MAP_FAILED) {
 		close(fd);
 		return (write(2, "Error: Cannot map file\n", 23), 1);
 	}
 
-	Elf64_Ehdr *ehdr = (Elf64_Ehdr *)map;
-	if (ehdr->e_ident[EI_MAG0] != ELFMAG0 ||
-		ehdr->e_ident[EI_MAG1] != ELFMAG1 ||
-		ehdr->e_ident[EI_MAG2] != ELFMAG2 ||
-		ehdr->e_ident[EI_MAG3] != ELFMAG3) {
+	t_arch_functions arch_specifics;
+	if (map[EI_MAG0] != ELFMAG0 ||
+		map[EI_MAG1] != ELFMAG1 ||
+		map[EI_MAG2] != ELFMAG2 ||
+		map[EI_MAG3] != ELFMAG3) {
 		munmap(map, st.st_size);
 		close(fd);
 		return (write(2, "Error: Not a valid ELF file\n", 28), 1);
 	}
-	if (ehdr->e_ident[EI_CLASS] != ELFCLASS64) {
+	if (map[EI_CLASS] == ELFCLASS64) {
+		arch_specifics.get_section_header = get_section_header_x64;
+		arch_specifics.get_symbol = get_symbol_x64;
+		arch_specifics.get_elf_header = get_elf_header_x64;
+		arch_specifics.sizeof_symbol = sizeof(Elf64_Sym);
+		arch_specifics.sizeof_section_header = sizeof(Elf64_Shdr);
+	}
+	else if (map[EI_CLASS] == ELFCLASS32) {
+		arch_specifics.get_section_header = get_section_header_x32;
+		arch_specifics.get_symbol = get_symbol_x32;
+		arch_specifics.get_elf_header = get_elf_header_x32;
+		arch_specifics.sizeof_symbol = sizeof(Elf32_Sym);
+		arch_specifics.sizeof_section_header = sizeof(Elf32_Shdr);
+	}
+	else
+	{
 		munmap(map, st.st_size);
 		close(fd);
 		return (write(2, "Error: Unsupported ELF class or data encoding\n", 45), 1);
 	}
+	Elf64_Ehdr ehdr = arch_specifics.get_elf_header(map);
 
-	Elf64_Shdr *shdr = (Elf64_Shdr *)((char *)map + ehdr->e_shoff);
-	Elf64_Shdr *symtab_shdr = NULL;
-	Elf64_Shdr *strtab_shdr = NULL;
-	for (int i = 0; i < ehdr->e_shnum; i++) {
-		if (shdr[i].sh_type == SHT_SYMTAB) {
-			symtab_shdr = &shdr[i];
-		} else if (shdr[i].sh_type == SHT_STRTAB) {
-			if (i != ehdr->e_shstrndx)
-				strtab_shdr = &shdr[i];
+	unsigned char *shdr = (map + ehdr.e_shoff);
+	void *symtab_shdr = NULL;
+	void *strtab_shdr = NULL;
+	for (uint16_t i = 0; i < ehdr.e_shnum; i++) {
+		Elf64_Shdr	section_header = arch_specifics.get_section_header(shdr, i);
+		if (section_header.sh_type == SHT_SYMTAB) {
+			symtab_shdr = shdr + arch_specifics.sizeof_section_header * i;
+		} else if (section_header.sh_type == SHT_STRTAB) {
+			if (i != ehdr.e_shstrndx)
+				strtab_shdr = shdr + arch_specifics.sizeof_section_header * i;
 			else if (strtab_shdr == NULL) {
 				// Fallback to first STRTAB if no other found
-				strtab_shdr = &shdr[i];
+				strtab_shdr = shdr + arch_specifics.sizeof_section_header * i;
 			}
 		}
 	}
@@ -97,49 +115,52 @@ int main(int argc, char **argv)
 		close(fd);
 		return (write(2, "Error: Cannot find symbol or string table\n", 42), 1);
 	}
-	if (strtab_shdr->sh_addr + strtab_shdr->sh_size > (unsigned long)st.st_size) {
+	Elf64_Shdr symbol_table_header = arch_specifics.get_section_header(symtab_shdr, 0);
+	Elf64_Shdr string_table_header = arch_specifics.get_section_header(strtab_shdr, 0);
+	if (string_table_header.sh_addr + string_table_header.sh_size > (unsigned long)st.st_size) {
 		munmap(map, st.st_size);
 		close(fd);
 		return (write(2, "Error: Corrupt string table\n", 28), 1);
 	}
-	if (symtab_shdr->sh_addr + symtab_shdr->sh_size > (unsigned long)st.st_size) {
+	if (symbol_table_header.sh_addr + symbol_table_header.sh_size > (unsigned long)st.st_size) {
 		munmap(map, st.st_size);
 		close(fd);
 		return (write(2, "Error: Corrupt symbol table\n", 28), 1);
 	}
 
-	Elf64_Sym *symtab = (Elf64_Sym *)((char *)map + symtab_shdr->sh_offset);
-	char *strtab = (char *)map + strtab_shdr->sh_offset;
-	size_t num_symbols = symtab_shdr->sh_size / sizeof(Elf64_Sym);
+	void *symtab = map + symbol_table_header.sh_offset;
+	char *strtab = (char *)map + string_table_header.sh_offset;
+	size_t num_symbols = symbol_table_header.sh_size / arch_specifics.sizeof_symbol;
 	t_vector symbols;
 
 	vector_init(&symbols, sizeof(t_symbol));
 	for (size_t i = 1; i < num_symbols; i++) {
 		t_symbol symbol;
-		symbol.identifier  = get_identifier(symtab[i], shdr, ehdr->e_shnum);
+		Elf64_Sym og_symbol = arch_specifics.get_symbol(symtab, i);
+		symbol.identifier  = get_identifier(og_symbol, shdr, arch_specifics, ehdr.e_shnum);
 
 		if (is_filtered_symbol(symbol.identifier))
 			continue;
 		if (should_print_address(symbol.identifier)) {
-			fill_addr(symbol.address_str, symtab[i].st_value);
+			fill_addr(symbol.address_str, og_symbol.st_value);
 		} else {
 			ft_memset(symbol.address_str, ' ', 16);
 		}
 		symbol.address_str[16] = '\0';
-		symbol.name_offset = symtab[i].st_name;
+		symbol.name_offset = og_symbol.st_name;
 		symbol.og_index = i;
-		if (symtab[i].st_name != 0) {
-			char *sym_name = strtab + symtab[i].st_name;
-			if (sym_name > (strtab + strtab_shdr->sh_size)) {
+		if (og_symbol.st_name != 0) {
+			char *sym_name = strtab + og_symbol.st_name;
+			if (sym_name > (strtab + string_table_header.sh_size)) {
 				symbol.name = "<corrupt>";
 				symbol.name_len = 9;
 			} else {
 				symbol.name = sym_name;
-				symbol.name_len = get_name_len(strtab, symtab[i].st_name, strtab_shdr->sh_size);
+				symbol.name_len = get_name_len(strtab, og_symbol.st_name, string_table_header.sh_size);
 			}
 		}
 		else {
-			if (symtab[i].st_value == 0)
+			if (og_symbol.st_value == 0)
 				continue;
 		}
 
@@ -153,8 +174,8 @@ int main(int argc, char **argv)
 
 	vector_foreach(&symbols, (void (*)(void *))print_symbol);
 
-	vector_free(&symbols);
 	munmap(map, st.st_size);
+	vector_free(&symbols);
 	close(fd);
 	return 0;
 }
