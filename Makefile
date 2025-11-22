@@ -6,13 +6,13 @@
 #    By: lcottet <lcottet@student.42lyon.fr>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/02/14 13:24:31 by bwisniew          #+#    #+#              #
-#    Updated: 2025/11/19 23:04:21 by lcottet          ###   ########lyon.fr    #
+#    Updated: 2025/11/22 15:06:55 by lcottet          ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
 CC = cc
 
-CFLAGS = -Wall -Wextra -Werror -MMD -MP -g3 -pg
+CFLAGS = -Wall -Wextra -Werror -MMD -MP
 
 SRCS_DIR = srcs
 
