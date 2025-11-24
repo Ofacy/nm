@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 #include <elf.h>
 #include <sys/stat.h>
+#include <stdio.h>
 
 #include <libft.h>
 #include <vector.h>
@@ -43,24 +44,33 @@ int compare_symbol_names(t_symbol *s1, t_symbol *s2)
 	return (s1->og_index - s2->og_index);
 }
 
-int main(int argc, char **argv)
+int compare_symbol_names_reverse(t_symbol *s1, t_symbol *s2)
 {
-	if (argc < 2) {
-		return (write(2, "Usage: ./nm <file>\n", 20), 1);
+	return -compare_symbol_names(s1, s2);
+}
+
+int handle_file(
+	const char *filepath,
+	int (*is_filtered)(t_symbol),
+	int (*compare)(t_symbol *, t_symbol *))
+{
+	int fd = open(filepath, O_RDONLY);
+	if (fd < 0) {
+		perror(filepath);
+		return 1;
 	}
-	int fd = open(argv[1], O_RDONLY);
-	if (fd < 0)
-		return (write(2, "Error: Cannot open file\n", 24), 1);
 
 	struct stat st;
 	if (fstat(fd, &st) < 0) {
 		close(fd);
-		return (write(2, "Error: Cannot stat file\n", 24), 1);
+		perror("fstat");
+		return 1;
 	}
 	unsigned char *map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	close(fd);
 	if (map == MAP_FAILED) {
-		close(fd);
-		return (write(2, "Error: Cannot map file\n", 23), 1);
+		perror("mmap");
+		return 1;
 	}
 
 	t_arch_functions arch_specifics;
@@ -70,7 +80,8 @@ int main(int argc, char **argv)
 		map[EI_MAG3] != ELFMAG3) {
 		munmap(map, st.st_size);
 		close(fd);
-		return (write(2, "Error: Not a valid ELF file\n", 28), 1);
+		write(2, "Error: Not an ELF file\n", 23);
+		return 1;
 	}
 	if (map[EI_CLASS] == ELFCLASS64) {
 		arch_specifics.get_section_header = get_section_header_x64;
@@ -91,14 +102,14 @@ int main(int argc, char **argv)
 	else
 	{
 		munmap(map, st.st_size);
-		close(fd);
-		return (write(2, "Error: Unsupported ELF class or data encoding\n", 45), 1);
+		write(2, "Error: Unknown ELF class\n", 25);
+		return 1;
 	}
 	Elf64_Ehdr ehdr = arch_specifics.get_elf_header(map);
 	if (ehdr.e_shoff + ehdr.e_shnum * arch_specifics.sizeof_section_header > (unsigned long)st.st_size) {
 		munmap(map, st.st_size);
-		close(fd);
-		return (write(2, "Error: file too short\n", 22), 1);
+		write(2, "Error: Corrupt section headers\n", 31);
+		return 1;
 	}
 
 	unsigned char *shdr = (map + ehdr.e_shoff);
@@ -119,20 +130,20 @@ int main(int argc, char **argv)
 	}
 	if (!symtab_shdr || !strtab_shdr) {
 		munmap(map, st.st_size);
-		close(fd);
-		return (write(2, "Error: Cannot find symbol or string table\n", 42), 1);
+		write(2, "Error: Missing symbol or string table\n", 37);
+		return 1;
 	}
 	Elf64_Shdr symbol_table_header = arch_specifics.get_section_header(symtab_shdr, 0);
 	Elf64_Shdr string_table_header = arch_specifics.get_section_header(strtab_shdr, 0);
 	if (string_table_header.sh_addr + string_table_header.sh_size > (unsigned long)st.st_size) {
 		munmap(map, st.st_size);
-		close(fd);
-		return (write(2, "Error: Corrupt string table\n", 28), 1);
+		write(2, "Error: Corrupt string table\n", 28);
+		return 1;
 	}
 	if (symbol_table_header.sh_addr + symbol_table_header.sh_size > (unsigned long)st.st_size) {
 		munmap(map, st.st_size);
-		close(fd);
-		return (write(2, "Error: Corrupt symbol table\n", 28), 1);
+		write(2, "Error: Corrupt symbol table\n", 28);
+		return 1;
 	}
 
 	void *symtab = map + symbol_table_header.sh_offset;
@@ -141,7 +152,7 @@ int main(int argc, char **argv)
 	t_vector symbols;
 
 	vector_init(&symbols, sizeof(t_symbol));
-	for (size_t i = 1; i < num_symbols; i++) {
+	for (size_t i = 0; i < num_symbols; i++) {
 		t_symbol symbol;
 		Elf64_Sym og_symbol = arch_specifics.get_symbol(symtab, i);
 		symbol.identifier  = get_identifier(og_symbol, shdr, arch_specifics, ehdr.e_shnum);
@@ -166,17 +177,22 @@ int main(int argc, char **argv)
 			}
 		}
 		else {
-			if (og_symbol.st_value == 0)
+			if (is_filtered != is_invalid_symbol && og_symbol.st_value == 0)
 				continue;
 			symbol.name = NULL;
+			symbol.name_len = 0;
 		}
-		if (is_filtered_symbol(symbol))
+		if (is_filtered && is_filtered(symbol))
 			continue;
 
-		size_t insert_index = vector_binary_search(&symbols, &symbol, (int (*)(void *, void*))compare_symbol_names);
+		size_t insert_index = symbols.len;
+		if (compare) {
+			insert_index = vector_binary_search(&symbols, &symbol, (int (*)(void *, void *))compare);
+		}
 		if (vector_addi(&symbols, &symbol, insert_index) == -1) {
 			vector_free(&symbols);
 			munmap(map, st.st_size);
+			perror("vector_addi");
 			return (1);
 		}
 	}
@@ -185,6 +201,73 @@ int main(int argc, char **argv)
 
 	munmap(map, st.st_size);
 	vector_free(&symbols);
-	close(fd);
 	return 0;
+}
+
+int main(int argc, char **argv)
+{
+	int options;
+	int errors;
+	t_vector file_names;
+	int (*is_filtered)(t_symbol);
+	int (*compare)(t_symbol *, t_symbol *);
+
+	errors = 0;
+	options = 0;
+	vector_init(&file_names, sizeof(char *));
+	for (int i = 1; i < argc; i++) {
+		if (argv[i][0] == '-') {
+			for (int j = 1; argv[i][j] != '\0'; j++) {
+				if (argv[i][j] == 'a')
+					options |= FLAG_ALL;
+				else if (argv[i][j] == 'u')
+					options |= FLAG_UNDEFINED;
+				else if (argv[i][j] == 'g')
+					options |= FLAG_EXTERNAL;
+				else if (argv[i][j] == 'p')
+					options |= FLAG_NO_SORT;
+				else if (argv[i][j] == 'r')
+					options |= FLAG_REVERSE;
+				else {
+					ft_printf("%s: invalid option -- '%c'\n", argv[0], argv[i][j]);
+					ft_printf("Usage: %s [-agunpr] [file ...]\n", argv[0]);
+					return (1);
+				}
+			}
+		}
+		else {
+			if (vector_add(&file_names, &argv[i]) == -1) {
+				perror("vector_add");
+				return (1);
+			}
+		}
+	}
+	is_filtered = is_filtered_symbol;
+	if (options & FLAG_UNDEFINED)
+		is_filtered = is_defined_symbol;
+	else if (options & FLAG_EXTERNAL)
+		is_filtered = is_external_symbol;
+	else if (options & FLAG_ALL)
+		is_filtered = is_invalid_symbol;
+	compare = compare_symbol_names;
+	if (options & FLAG_NO_SORT)
+		compare = NULL;
+	else if (options & FLAG_REVERSE) {
+		compare = compare_symbol_names_reverse;
+	}
+	if (file_names.len == 0) {
+		if (handle_file("a.out", is_filtered, compare) != 0)
+			errors++;
+	}
+	else {
+		for (size_t i = 0; i < file_names.len; i++) {
+			char *filepath = *((char **)vector_get(&file_names, i));
+			if (file_names.len > 1)
+				ft_printf("\n%s:\n", filepath);
+			if (handle_file(filepath, is_filtered, compare) != 0)
+				errors++;
+		}
+	}
+	vector_free(&file_names);
+	return errors;
 }

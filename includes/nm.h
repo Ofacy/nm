@@ -4,6 +4,12 @@
 # include <elf.h>
 # include <stddef.h>
 
+# define FLAG_ALL 1 << 0
+# define FLAG_UNDEFINED 1 << 1
+# define FLAG_EXTERNAL 1 << 2
+# define FLAG_NO_SORT 1 << 3
+# define FLAG_REVERSE 1 << 4
+
 typedef struct s_arch_functions {
 	Elf64_Shdr		(*get_section_header)(void *section_header_array, uint16_t index);
 	Elf64_Sym		(*get_symbol)(void *symbol_array, size_t index);

@@ -74,13 +74,32 @@ int is_filtered_symbol(t_symbol symbol)
 	return (symbol.identifier == '?' || symbol.identifier == 'n' || symbol.identifier == 'N' || symbol.identifier == 'a');
 }
 
+int is_defined_symbol(t_symbol symbol)
+{
+	return (symbol.identifier != 'U' && symbol.identifier != 'u' &&
+			symbol.identifier != 'w' && symbol.identifier != 'v');
+}
+
+int is_invalid_symbol(t_symbol symbol)
+{
+	return (symbol.name == NULL && (symbol.identifier == 'U' || symbol.identifier == 'u' || symbol.identifier == 'w' || symbol.identifier == 'v'));
+}
+
+int is_external_symbol(t_symbol symbol)
+{
+	return (symbol.identifier != 'U' && symbol.identifier != 'u' &&
+			symbol.identifier != 'd' && symbol.identifier != 'D' &&
+			symbol.identifier != 'b' && symbol.identifier != 'B' &&
+			symbol.identifier != 'r' && symbol.identifier != 'R');
+}
+
 void print_symbol(t_symbol *symbol) {
-	if (ft_printf("%s %c", symbol->address_str, symbol->identifier) == -1)
+	if (ft_printf("%s %c ", symbol->address_str, symbol->identifier) == -1)
 		return ;
 	if (symbol->name) {
 		if (symbol->name[symbol->name_len] != '\0')
 			symbol->name = NULL;
-		if (ft_printf(" %s", symbol->name) == -1)
+		if (ft_printf("%s", symbol->name) == -1)
 			return ;
 	}
 	if (ft_printf("\n") == -1)
