@@ -31,24 +31,6 @@ int get_name_len(const char *strtable, size_t offset, size_t strtable_size)
 	return len;
 }
 
-int compare_symbol_names(t_symbol *s1, t_symbol *s2)
-{
-	if (s1->name == NULL || s2->name == NULL)
-		return (s2->name - s1->name);
-	if (s1->name_offset != s2->name_offset)
-	{
-		int strcmp = ft_strncmp(s1->name, s2->name, s1->name_len + 1);
-		if (strcmp != 0)
-			return (strcmp);
-	}
-	return (s1->og_index - s2->og_index);
-}
-
-int compare_symbol_names_reverse(t_symbol *s1, t_symbol *s2)
-{
-	return -compare_symbol_names(s1, s2);
-}
-
 int handle_file(
 	const char *filepath,
 	int (*is_filtered)(t_symbol),
@@ -177,10 +159,15 @@ int handle_file(
 			}
 		}
 		else {
-			if (is_filtered != is_invalid_symbol && og_symbol.st_value == 0)
-				continue;
 			symbol.name = NULL;
 			symbol.name_len = 0;
+			if (og_symbol.st_shndx != SHN_UNDEF && og_symbol.st_shndx < ehdr.e_shnum && og_symbol.st_value == 0) {
+				Elf64_Shdr sec = arch_specifics.get_section_header(shdr, og_symbol.st_shndx);
+				symbol.name = strtab + sec.sh_name;
+				symbol.name_len = get_name_len(strtab, sec.sh_name, string_table_header.sh_size);
+			}
+			if (is_filtered != is_invalid_symbol && og_symbol.st_value == 0)
+				continue;
 		}
 		if (is_filtered && is_filtered(symbol))
 			continue;
@@ -242,19 +229,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-	is_filtered = is_filtered_symbol;
-	if (options & FLAG_UNDEFINED)
-		is_filtered = is_defined_symbol;
-	else if (options & FLAG_EXTERNAL)
-		is_filtered = is_external_symbol;
-	else if (options & FLAG_ALL)
-		is_filtered = is_invalid_symbol;
-	compare = compare_symbol_names;
-	if (options & FLAG_NO_SORT)
-		compare = NULL;
-	else if (options & FLAG_REVERSE) {
-		compare = compare_symbol_names_reverse;
-	}
+	get_file_options(options, &is_filtered, &compare);
 	if (file_names.len == 0) {
 		if (handle_file("a.out", is_filtered, compare) != 0)
 			errors++;

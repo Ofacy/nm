@@ -6,17 +6,17 @@
 #    By: lcottet <lcottet@student.42lyon.fr>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/02/14 13:24:31 by bwisniew          #+#    #+#              #
-#    Updated: 2025/11/22 15:06:55 by lcottet          ###   ########lyon.fr    #
+#    Updated: 2025/11/25 16:43:48 by lcottet          ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
 CC = cc
 
-CFLAGS = -Wall -Wextra -Werror -MMD -MP
+CFLAGS = -Wall -Wextra -Werror -MMD -MP -g3
 
 SRCS_DIR = srcs
 
-SRCS =	main.c identifier.c arch_specific.c
+SRCS =	main.c identifier.c arch_specific.c options.c
 
 OUTDIR = obj
 

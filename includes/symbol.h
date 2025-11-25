@@ -26,4 +26,10 @@ int is_external_symbol(t_symbol symbol);
 
 void print_symbol(t_symbol *symbol);
 
+
+void get_file_options(
+	int options,
+	int (**is_filtered)(t_symbol),
+	int (**compare)(t_symbol *, t_symbol *));
+
 #endif

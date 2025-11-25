@@ -82,7 +82,7 @@ int is_defined_symbol(t_symbol symbol)
 
 int is_invalid_symbol(t_symbol symbol)
 {
-	return (symbol.name == NULL && (symbol.identifier == 'U' || symbol.identifier == 'u' || symbol.identifier == 'w' || symbol.identifier == 'v'));
+	return (symbol.name == NULL && (symbol.identifier == 'U' || symbol.identifier == 'u' || symbol.identifier == 'w' || symbol.identifier == 'v' || symbol.identifier == 't'));
 }
 
 int is_external_symbol(t_symbol symbol)
