@@ -11,7 +11,6 @@ typedef struct s_symbol {
 	char		address_str[17];
 	int			name_len;
 	uint16_t	section_index;
-	char		info;
 	char		identifier;
 }	t_symbol;
 
