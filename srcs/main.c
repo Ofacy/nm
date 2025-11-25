@@ -112,7 +112,7 @@ int handle_file(
 	}
 	if (!symtab_shdr || !strtab_shdr) {
 		munmap(map, st.st_size);
-		write(2, "Error: Missing symbol or string table\n", 37);
+		write(2, "Error: Missing symbol or string table\n", 38);
 		return 1;
 	}
 	Elf64_Shdr symbol_table_header = arch_specifics.get_section_header(symtab_shdr, 0);
