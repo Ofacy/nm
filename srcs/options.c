@@ -16,7 +16,15 @@ int compare_symbol_names(t_symbol *s1, t_symbol *s2)
 
 int compare_symbol_names_reverse(t_symbol *s1, t_symbol *s2)
 {
-	return -compare_symbol_names(s1, s2);
+	if (s1->name == NULL || s2->name == NULL)
+		return (s1->name - s2->name);
+	if (s1->name_offset != s2->name_offset)
+	{
+		int strcmp = ft_strncmp(s1->name, s2->name, s1->name_len + 1);
+		if (strcmp != 0)
+			return (-strcmp);
+	}
+	return (s1->og_index - s2->og_index);
 }
 
 void get_file_options(
