@@ -4,7 +4,14 @@
 int compare_symbol_names(t_symbol *s1, t_symbol *s2)
 {
 	if (s1->name == NULL || s2->name == NULL)
-		return (s2->name - s1->name);
+	{
+		if (s1->name == NULL && s2->name == NULL)
+			return (s1->og_index - s2->og_index);
+		if (s1->name == NULL)
+			return (-1);
+		else
+			return (1);
+	}
 	if (s1->name_offset != s2->name_offset)
 	{
 		int strcmp = ft_strncmp(s1->name, s2->name, s1->name_len + 1);
@@ -17,7 +24,14 @@ int compare_symbol_names(t_symbol *s1, t_symbol *s2)
 int compare_symbol_names_reverse(t_symbol *s1, t_symbol *s2)
 {
 	if (s1->name == NULL || s2->name == NULL)
-		return (s1->name - s2->name);
+	{
+		if (s1->name == NULL && s2->name == NULL)
+			return (s1->og_index - s2->og_index);
+		if (s1->name == NULL)
+			return (1);
+		else
+			return (-1);
+	}
 	if (s1->name_offset != s2->name_offset)
 	{
 		int strcmp = ft_strncmp(s1->name, s2->name, s1->name_len + 1);
