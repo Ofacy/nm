@@ -61,7 +61,6 @@ int handle_file(
 		map[EI_MAG2] != ELFMAG2 ||
 		map[EI_MAG3] != ELFMAG3) {
 		munmap(map, st.st_size);
-		close(fd);
 		write(2, "Error: Not an ELF file\n", 23);
 		return 1;
 	}
@@ -159,10 +158,12 @@ int handle_file(
 			}
 		}
 		else {
+			symbol.name_offset = 0;
 			symbol.name = NULL;
 			symbol.name_len = 0;
 			if (og_symbol.st_shndx != SHN_UNDEF && og_symbol.st_shndx < ehdr.e_shnum && og_symbol.st_value == 0) {
 				Elf64_Shdr sec = arch_specifics.get_section_header(shdr, og_symbol.st_shndx);
+				symbol.name_offset = sec.sh_name;
 				symbol.name = strtab + sec.sh_name;
 				symbol.name_len = get_name_len(strtab, sec.sh_name, string_table_header.sh_size);
 			}
