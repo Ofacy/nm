@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 					options |= FLAG_REVERSE;
 				else {
 					ft_printf("%s: invalid option -- '%c'\n", argv[0], argv[i][j]);
-					ft_printf("Usage: %s [-agunpr] [file ...]\n", argv[0]);
+					ft_printf("Usage: %s [-agupr] [file ...]\n", argv[0]);
 					return (1);
 				}
 			}
