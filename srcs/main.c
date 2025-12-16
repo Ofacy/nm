@@ -158,7 +158,6 @@ int handle_file(
 			}
 		}
 		else {
-			symbol.name_offset = 0;
 			symbol.name = NULL;
 			symbol.name_len = 0;
 			if (og_symbol.st_shndx != SHN_UNDEF && og_symbol.st_shndx < ehdr.e_shnum && og_symbol.st_value == 0) {
