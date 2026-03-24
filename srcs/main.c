@@ -116,12 +116,12 @@ int handle_file(
 	}
 	Elf64_Shdr symbol_table_header = arch_specifics.get_section_header(symtab_shdr, 0);
 	Elf64_Shdr string_table_header = arch_specifics.get_section_header(strtab_shdr, 0);
-	if (string_table_header.sh_addr + string_table_header.sh_size > (unsigned long)st.st_size) {
+	if (string_table_header.sh_offset + string_table_header.sh_size > (unsigned long)st.st_size) {
 		munmap(map, st.st_size);
 		write(2, "Error: Corrupt string table\n", 28);
 		return 1;
 	}
-	if (symbol_table_header.sh_addr + symbol_table_header.sh_size > (unsigned long)st.st_size) {
+	if (symbol_table_header.sh_offset + symbol_table_header.sh_size > (unsigned long)st.st_size) {
 		munmap(map, st.st_size);
 		write(2, "Error: Corrupt symbol table\n", 28);
 		return 1;
